@@ -4,9 +4,12 @@ import java.time.LocalDateTime;
 import jakarta.persistence.*;
 
 import com.ekart.dto.TransactionStatus;
+import lombok.Getter;
+import lombok.Setter;
 
 
-
+@Setter
+@Getter
 @Entity
 @Table(name="EK_TRANSACTION")
 public class Transaction {
@@ -20,41 +23,5 @@ public class Transaction {
 	private LocalDateTime transactionDate;
 	@Enumerated(EnumType.STRING)
 	private TransactionStatus transactionStatus;
-	public Integer getTransactionId() {
-		return transactionId;
-	}
-	public void setTransactionId(Integer transactionId) {
-		this.transactionId = transactionId;
-	}
-	public Integer getOrderId() {
-		return orderId;
-	}
-	public void setOrderId(Integer orderId) {
-		this.orderId = orderId;
-	}
-	public Integer getCardId() {
-		return cardId;
-	}
-	public void setCardId(Integer cardId) {
-		this.cardId = cardId;
-	}
-	public Double getTotalPrice() {
-		return totalPrice;
-	}
-	public void setTotalPrice(Double totalPrice) {
-		this.totalPrice = totalPrice;
-	}
-	public LocalDateTime getTransactionDate() {
-		return transactionDate;
-	}
-	public void setTransactionDate(LocalDateTime transactionDate) {
-		this.transactionDate = transactionDate;
-	}
-	public TransactionStatus getTransactionStatus() {
-		return transactionStatus;
-	}
-	public void setTransactionStatus(TransactionStatus transactionStatus) {
-		this.transactionStatus = transactionStatus;
-	}
-	
+
 }

@@ -46,7 +46,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         }
         Card card = new Card();
-        card.setCardId(cardDTO.getCardId());
+        card.setCardID(cardDTO.getCardId());
         card.setCardNumber(cardDTO.getCardNumber());
         card.setCardType(cardDTO.getCardType());
         card.setCustomerEmailId(cardDTO.getCustomerEmailId());
@@ -72,7 +72,7 @@ public class PaymentServiceImpl implements PaymentService {
         Optional<Card> optional = cardRepository.findById(cardDTO.getCardId());
         Card card = optional.orElseThrow(() -> new EKartException("PaymentService.CARD_NOT_FOUND"));
 
-        card.setCardId(cardDTO.getCardId());
+        card.setCardID(cardDTO.getCardId());
         card.setCardNumber(cardDTO.getCardNumber());
         card.setCardType(cardDTO.getCardType());
         card.setCustomerEmailId(cardDTO.getCustomerEmailId());

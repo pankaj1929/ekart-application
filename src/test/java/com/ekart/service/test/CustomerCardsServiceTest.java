@@ -33,7 +33,7 @@ class CustomerCardsServiceTest {
     @Test
     void updateCustomerCardValidTest() throws EKartException {
         Card card = new Card();
-        card.setCardId(122);
+        card.setCardID(122);
         card.setNameOnCard("AIM");
         card.setCvv("466");
         card.setCardType("6642150005012186");

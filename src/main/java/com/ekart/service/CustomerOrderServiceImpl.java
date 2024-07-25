@@ -1,10 +1,11 @@
 package com.ekart.service;
 
 import java.time.LocalDateTime;
-
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,19 +22,21 @@ import com.ekart.entity.OrderedProduct;
 import com.ekart.exception.EKartException;
 import com.ekart.repository.CustomerOrderRepository;
 
-//Add the missing annotation
 @Service(value = "customerOrderService")
 @Transactional
 public class CustomerOrderServiceImpl implements CustomerOrderService {
-@Autowired
+
+	@Autowired
 	private CustomerOrderRepository orderRepository;
-@Autowired
+
+	@Autowired
 	private CustomerService customerService;
 
 	@Override
 	public Integer placeOrder(OrderDTO orderDTO) throws EKartException {
 		CustomerDTO customerDTO = customerService.getCustomerByEmailId(orderDTO.getCustomerEmailId());
-		if (customerDTO.getAddress().isBlank() || customerDTO.getAddress() == null) {
+
+		if (customerDTO.getAddress() == null || customerDTO.getAddress().isBlank()) {
 			throw new EKartException("OrderService.ADDRESS_NOT_AVAILABLE");
 		}
 
@@ -43,48 +46,90 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
 		order.setDateOfDelivery(orderDTO.getDateOfDelivery());
 		order.setDateOfOrder(LocalDateTime.now());
 		order.setPaymentThrough(PaymentThrough.valueOf(orderDTO.getPaymentThrough()));
-		if (order.getPaymentThrough().equals(PaymentThrough.CREDIT_CARD)) {
-			order.setDiscount(10.00d);
-		} else {
-			order.setDiscount(5.00d);
-
-		}
-
+		order.setDiscount(order.getPaymentThrough() == PaymentThrough.CREDIT_CARD ? 10.0 : 5.0);
 		order.setOrderStatus(OrderStatus.PLACED);
-		Double price = 0.0;
-		List<OrderedProduct> orderedProducts = new ArrayList<OrderedProduct>();
 
-		for (OrderedProductDTO orderedProductDTO : orderDTO.getOrderedProducts()) {
-			if (orderedProductDTO.getProduct().getAvailableQuantity() < orderedProductDTO.getQuantity()) {
-				throw new EKartException("OrderService.INSUFFICIENT_STOCK");
-			}
+		double totalPrice = orderDTO.getOrderedProducts().stream()
+				.mapToDouble(orderedProductDTO -> {
+					if (orderedProductDTO.getProduct().getAvailableQuantity() < orderedProductDTO.getQuantity()) {
+                        try {
+                            throw new EKartException("OrderService.INSUFFICIENT_STOCK");
+                        } catch (EKartException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+					return orderedProductDTO.getQuantity() * orderedProductDTO.getProduct().getPrice();
+				}).sum();
 
-			OrderedProduct orderedProduct = new OrderedProduct();
-			orderedProduct.setProductId(orderedProductDTO.getProduct().getProductId());
-			orderedProduct.setQuantity(orderedProductDTO.getQuantity());
-			orderedProducts.add(orderedProduct);
-			price = price + orderedProductDTO.getQuantity() * orderedProductDTO.getProduct().getPrice();
-
-		}
+		List<OrderedProduct> orderedProducts = orderDTO.getOrderedProducts().stream()
+				.map(this::toOrderedProduct)
+				.collect(Collectors.toList());
 
 		order.setOrderedProducts(orderedProducts);
-
-		order.setTotalPrice(price * (100 - order.getDiscount()) / 100);
+		order.setTotalPrice(totalPrice * (100 - order.getDiscount()) / 100);
 
 		orderRepository.save(order);
 
 		return order.getOrderId();
 	}
 
-	// Get the Order details by using the OrderId
-	// If not found throw EKartException with message OrderService.ORDER_NOT_FOUND
-	// Else return the order details along with the ordered products
 	@Override
 	public OrderDTO getOrderDetails(Integer orderId) throws EKartException {
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new EKartException("OrderService.ORDER_NOT_FOUND"));
 
-		// write your logic here
-		Optional<Order> optional = orderRepository.findById(orderId);
-		Order order = optional.orElseThrow(()-> new EKartException("OrderService.ORDER_NOT_FOUND"));
+		return toOrderDTO(order);
+	}
+
+	@Override
+	public void updateOrderStatus(Integer orderId, OrderStatus orderStatus) throws EKartException {
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new EKartException("OrderService.ORDER_NOT_FOUND"));
+		order.setOrderStatus(orderStatus);
+	}
+
+	@Override
+	public void updatePaymentThrough(Integer orderId, PaymentThrough paymentThrough) throws EKartException {
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new EKartException("OrderService.ORDER_NOT_FOUND"));
+
+		if (order.getOrderStatus() == OrderStatus.CONFIRMED) {
+			throw new EKartException("OrderService.TRANSACTION_ALREADY_DONE");
+		}
+
+		order.setPaymentThrough(paymentThrough);
+	}
+
+	@Override
+	public List<OrderDTO> findOrdersByCustomerEmailId(String emailId) throws EKartException {
+		List<Order> orders = orderRepository.findByCustomerEmailId(emailId);
+
+		if (orders.isEmpty()) {
+			throw new EKartException("OrderService.NO_ORDERS_FOUND");
+		}
+
+		ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		try {
+			List<CompletableFuture<OrderDTO>> futures = orders.stream()
+					.map(order -> CompletableFuture.supplyAsync(() -> toOrderDTO(order), executorService))
+					.toList();
+
+			return futures.stream()
+					.map(CompletableFuture::join)
+					.collect(Collectors.toList());
+		} finally {
+			executorService.shutdown();
+		}
+	}
+
+	private OrderedProduct toOrderedProduct(OrderedProductDTO orderedProductDTO) {
+		OrderedProduct orderedProduct = new OrderedProduct();
+		orderedProduct.setProductId(orderedProductDTO.getProduct().getProductId());
+		orderedProduct.setQuantity(orderedProductDTO.getQuantity());
+		return orderedProduct;
+	}
+
+	private OrderDTO toOrderDTO(Order order) {
 		OrderDTO orderDTO = new OrderDTO();
 		orderDTO.setOrderId(order.getOrderId());
 		orderDTO.setCustomerEmailId(order.getCustomerEmailId());
@@ -95,103 +140,22 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
 		orderDTO.setPaymentThrough(order.getPaymentThrough().toString());
 		orderDTO.setDateOfDelivery(order.getDateOfDelivery());
 		orderDTO.setDeliveryAddress(order.getDeliveryAddress());
-		
-		List<OrderedProductDTO> orderedProductsDtos = new ArrayList<>();
-		for(OrderedProduct oP: order.getOrderedProducts())   {
-			OrderedProductDTO o = new OrderedProductDTO();
-			o.setOrderedProductId(oP.getOrderedProductId());
-			ProductDTO productDTO = new ProductDTO();
-			productDTO.setProductId(oP.getProductId());
-			o.setProduct(productDTO);
-			o.setQuantity(oP.getQuantity());
-			
-			orderedProductsDtos.add(o);
-			
-		}
-		orderDTO.setOrderedProducts(orderedProductsDtos);
+
+		List<OrderedProductDTO> orderedProductsDTOs = order.getOrderedProducts().stream()
+				.map(this::toOrderedProductDTO)
+				.collect(Collectors.toList());
+
+		orderDTO.setOrderedProducts(orderedProductsDTOs);
 		return orderDTO;
 	}
 
-	// Get the Order details by using the OrderId
-	// If not found throw EKartException with message OrderService.ORDER_NOT_FOUND
-	// Else update the order status with the given order status
-	@Override
-	public void updateOrderStatus(Integer orderId, OrderStatus orderStatus) throws EKartException {
-		// write your logic here
-		Optional<Order> optional= orderRepository.findById(orderId);
-		Order order=optional.orElseThrow(()-> new EKartException("OrderService.ORDER_NOT_FOUND"));
-		order.setOrderStatus(orderStatus);
+	private OrderedProductDTO toOrderedProductDTO(OrderedProduct orderedProduct) {
+		OrderedProductDTO orderedProductDTO = new OrderedProductDTO();
+		orderedProductDTO.setOrderedProductId(orderedProduct.getOrderedProductId());
+		ProductDTO productDTO = new ProductDTO();
+		productDTO.setProductId(orderedProduct.getProductId());
+		orderedProductDTO.setProduct(productDTO);
+		orderedProductDTO.setQuantity(orderedProduct.getQuantity());
+		return orderedProductDTO;
 	}
-
-	// Get the Order details by using the OrderId
-	// If not found throw EKartException with message OrderService.ORDER_NOT_FOUND
-	// Else check if the order status is already confirmed, if yes then throw
-	// EKartException with message OrderService.TRANSACTION_ALREADY_DONE
-	// Else update the paymentThrough with the given paymentThrough option
-	@Override
-	public void updatePaymentThrough(Integer orderId, PaymentThrough paymentThrough) throws EKartException {
-
-		// write your logic here
-		Optional<Order> optional = orderRepository.findById(orderId);
-		Order order = optional.orElseThrow(()-> new EKartException("OrderService.ORDER_NOT_FOUND"));
-		
-		if (order.getOrderStatus().equals(OrderStatus.CONFIRMED)) {
-			throw new EKartException("OrderService.TRANSACTION_ALREADY_DONE");
-			
-		}
-		order.setPaymentThrough(paymentThrough);
-	}
-
-	// Get the list of Order details by using the emailId
-	// If the list is empty throw EKartException with message
-	// OrderService.NO_ORDERS_FOUND
-	// Else populate the order details along with ordered products and return that
-	// list
-
-	@Override
-	public List<OrderDTO> findOrdersByCustomerEmailId(String emailId) throws EKartException {
-		// write your logic here
-		List<Order> list = orderRepository.findByCustomerEmailId(emailId);
-		if (list.isEmpty()) {
-			throw new EKartException("OrderService.NO_ORDERS_FOUND");
-			
-			
-		}
-		
-		List<OrderDTO> orderDTOs = new ArrayList<OrderDTO>();
-		for(Order order: list) {
-			OrderDTO orderDTO = new OrderDTO();
-			orderDTO.setOrderId(order.getOrderId());
-			orderDTO.setCustomerEmailId(order.getCustomerEmailId());
-			orderDTO.setDateOfOrder(order.getDateOfOrder());
-			orderDTO.setDiscount(order.getDiscount());
-			orderDTO.setTotalPrice(order.getTotalPrice());
-			orderDTO.setOrderStatus(order.getOrderStatus().toString());
-			orderDTO.setPaymentThrough(order.getPaymentThrough().toString());
-			orderDTO.setDateOfDelivery(order.getDateOfDelivery());
-			orderDTO.setDeliveryAddress(order.getDeliveryAddress());
-			
-			List<OrderedProductDTO> orderedProductsDtos = new ArrayList<>();
-			for(OrderedProduct oP: order.getOrderedProducts())   {
-				OrderedProductDTO o = new OrderedProductDTO();
-				o.setOrderedProductId(oP.getOrderedProductId());
-				ProductDTO productDTO = new ProductDTO();
-				productDTO.setProductId(oP.getProductId());
-				o.setProduct(productDTO);
-				o.setQuantity(oP.getQuantity());
-				
-				orderedProductsDtos.add(o);
-				
-			}
-			orderDTO.setOrderedProducts(orderedProductsDtos);
-			orderDTOs.add(orderDTO);
-		
-		
-			
-		}
-		
-		
-		return orderDTOs; 
-	}
-
 }

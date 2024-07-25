@@ -36,10 +36,4 @@ public class Card {
 	@Column(name="CUSTOMER_EMAIL_ID")
 	private String customerEmailId;
 
-
-    public void setCardId(Integer cardID) {
-		this.cardID = cardID;
-	}
-
-
 }

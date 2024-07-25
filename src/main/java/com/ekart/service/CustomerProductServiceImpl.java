@@ -65,6 +65,15 @@ public class CustomerProductServiceImpl implements CustomerProductService {
 	public void reduceAvailableQuantity(Integer productId, Integer quantity) throws EKartException {
 		Optional<Product> productOp = productRepository.findById(productId);
 		Product product = productOp.orElseThrow(() -> new EKartException("ProductService.PRODUCT_NOT_AVAILABLE"));
+
+		if (quantity <= 0) {
+			throw new EKartException("ProductService.INVALID_QUANTITY");
+		}
+
+		if (quantity > product.getAvailableQuantity()) {
+			throw new EKartException("ProductService.QUANTITY_EXCEEDS_AVAILABLE");
+		}
+
 		product.setAvailableQuantity(product.getAvailableQuantity() - quantity);
 	}
 }

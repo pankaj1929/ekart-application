@@ -8,9 +8,12 @@ import jakarta.persistence.*;
 
 import com.ekart.dto.OrderStatus;
 import com.ekart.dto.PaymentThrough;
+import lombok.Getter;
+import lombok.Setter;
 
 
-
+@Setter
+@Getter
 @Entity
 @Table(name = "EK_ORDER")
 public class Order {
@@ -40,85 +43,5 @@ public class Order {
 	private List<OrderedProduct> orderedProducts;
     
 	private String deliveryAddress;
-	
-	public OrderStatus getOrderStatus() {
-		return orderStatus;
-	}
-
-	public void setOrderStatus(OrderStatus orderStatus) {
-		this.orderStatus = orderStatus;
-	}
-
-	public Integer getOrderId() {
-		return orderId;
-	}
-
-	public void setOrderId(Integer orderId) {
-		this.orderId = orderId;
-	}
-
-	public Double getTotalPrice() {
-		return totalPrice;
-	}
-
-	public void setTotalPrice(Double totalPrice) {
-		this.totalPrice = totalPrice;
-	}
-
-	public PaymentThrough getPaymentThrough() {
-		return paymentThrough;
-	}
-
-	public void setPaymentThrough(PaymentThrough paymentThrough) {
-		this.paymentThrough = paymentThrough;
-	}
-
-	public String getCustomerEmailId() {
-		return customerEmailId;
-	}
-
-	public void setCustomerEmailId(String customerEmailId) {
-		this.customerEmailId = customerEmailId;
-	}
-
-	public LocalDateTime getDateOfOrder() {
-		return dateOfOrder;
-	}
-
-	public void setDateOfOrder(LocalDateTime dateOfOrder) {
-		this.dateOfOrder = dateOfOrder;
-	}
-
-	public LocalDateTime getDateOfDelivery() {
-		return dateOfDelivery;
-	}
-
-	public void setDateOfDelivery(LocalDateTime dateOfDelivery) {
-		this.dateOfDelivery = dateOfDelivery;
-	}
-
-	public Double getDiscount() {
-		return discount;
-	}
-
-	public void setDiscount(Double discount) {
-		this.discount = discount;
-	}
-
-	public List<OrderedProduct> getOrderedProducts() {
-		return orderedProducts;
-	}
-
-	public void setOrderedProducts(List<OrderedProduct> orderedProducts) {
-		this.orderedProducts = orderedProducts;
-	}
-
-	public String getDeliveryAddress() {
-		return deliveryAddress;
-	}
-
-	public void setDeliveryAddress(String deliveryAddress) {
-		this.deliveryAddress = deliveryAddress;
-	}
 
 }

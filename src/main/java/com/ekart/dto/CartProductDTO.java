@@ -3,7 +3,11 @@ package com.ekart.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
+import lombok.Getter;
+import lombok.Setter;
 
+@Setter
+@Getter
 public class CartProductDTO {
     private Integer cartProductId;
 
@@ -12,22 +16,6 @@ public class CartProductDTO {
     @PositiveOrZero(message = "{cartproduct.invalid.quantity}")
     private Integer quantity;
 
-
-    public Integer getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
-
-    public Integer getCartProductId() {
-        return cartProductId;
-    }
-
-    public void setCartProductId(Integer cartProductId) {
-        this.cartProductId = cartProductId;
-    }
 
     @Override
     public int hashCode() {
@@ -49,14 +37,6 @@ public class CartProductDTO {
         if (product.getProductId() == null) {
             return other.product.getProductId() == null;
         } else return product.getProductId().equals(other.product.getProductId());
-    }
-
-    public ProductDTO getProduct() {
-        return product;
-    }
-
-    public void setProduct(ProductDTO product) {
-        this.product = product;
     }
 
 

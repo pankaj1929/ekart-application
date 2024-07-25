@@ -66,7 +66,7 @@ public class CustomerCartServiceImpl implements CustomerCartService {
 
 			cartId = cart.getCartId();
 		}
-		return cartId;
+		return  cartId;
 	}
 
 	// this method retrieves customer data from repository and returns cart details

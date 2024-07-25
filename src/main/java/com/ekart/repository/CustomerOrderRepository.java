@@ -6,7 +6,9 @@ import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 
 import com.ekart.entity.Order;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public interface CustomerOrderRepository extends CrudRepository<Order, Integer> {
 	// add methods if required
 
